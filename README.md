@@ -1,99 +1,75 @@
 # Clear Comments
 
-Clear Comments is a Visual Studio Code extension that quickly removes comments from your code files. Whether you're cleaning up code for production, analyzing it without distractions, or tidying up legacy files, Clear Comments supports a variety of languages including C#, JavaScript, TypeScript, VB, ASPX, and more.
+Clear Comments is a Visual Studio Code extension designed to help you quickly remove comments from your code. It works by processing the currently open document—or one or more files selected in the Explorer—using a simple mapping of language IDs to comment tokens. The extension removes entire lines that are solely comments and, when appropriate, removes inline comment portions (only if the code before the comment marker is empty or ends with a semicolon (`;`) or a closing brace (`}`)).
+
+If you try to run Clear Comments on a file whose language isn’t supported, the extension will inform you via an information message.
 
 ## Features
 
-- **Multi-Language Support:**  
-  Remove single-line and multi-line comments from files written in languages such as:
-  - **JavaScript/TypeScript/C#:** Supports `//` and `/* ... */` comments.
-  - **VB:** Supports `'` style single-line comments.
-  - **HTML/ASPX:** Supports `<!-- ... -->` comments.
+- **Supported Languages:**
+  - **JavaScript / TypeScript / TSX:** Removes both line (`//`) and block (`/* … */`) comments.
+  - **C#:** Removes line and block comments.
+  - **VB:** Removes lines starting with the VB comment token (`'`).
+  - **HTML / ASPX:** Removes block comments (`<!-- … -->`).
   
-- **Multiple Contexts:**  
-  - **Editor Context:** Right-click inside an open file to clear comments.
-  - **Explorer Context:** Right-click a file or select multiple files in the Explorer to clear comments in one go.
+- **Inline Comment Removal:**
+  - If an inline comment marker (`//`) appears in a line, the comment part is removed only if the code preceding the marker is empty or ends with `;` or `}`.
+  - The same heuristic is applied to inline block comments.
+  
+- **User Feedback:**
+  - Information messages are shown when the active document is processed or when a file’s language is not supported.
+  - All actions are logged to the Developer Tools console for debugging.
+
+- **Non-destructive Editing:**
+  - The extension applies changes to your document in memory without auto-saving. This lets you review the changes before you decide to save the file manually.
 
 ## Installation
 
-### Prerequisites
+1. **Install from VSIX (if not in Marketplace):**
+   - Package the extension using `vsce package` (if you have the source) or download the `.vsix` file.
+   - In VS Code, open the Extensions view.
+   - Click the ellipsis (`...`) in the upper-right corner and select **Install from VSIX...**.
+   - Locate the `.vsix` file and install it.
 
-- [Node.js](https://nodejs.org/) (which includes npm)
-- Visual Studio Code
-
-### Build & Install
-
-1. **Clone the Repository or Download the Source:**
-
-   ```bash
-   git clone https://github.com/yourusername/clear-comments.git
-   cd clear-comments
-   ```
-
-2. **Install Dependencies:**
-
-   ```bash
-   npm install
-   ```
-
-3. **Compile the Extension:**
-
-   ```bash
-   npm run compile
-   ```
-
-4. **Run the Extension in VS Code:**
-
-   - Press `F5` in Visual Studio Code to launch a new Extension Development Host with the extension loaded.
-
-5. **Package the Extension (Optional):**
-
-   - Install the Visual Studio Code Extension Manager if you haven't already:
-
-     ```bash
-     npm install -g vsce
-     ```
-
-   - Package the extension:
-
-     ```bash
-     vsce package
-     ```
-
-   - This creates a `.vsix` file (e.g., `clear-comments-0.0.1.vsix`) which you can install via **Install from VSIX...** in VS Code.
+2. **From the Visual Studio Code Marketplace:**
+   - Search for "Clear Comments" and install the extension directly from the marketplace (if published).
 
 ## Usage
 
-### From the Editor
+### Using the Explorer Context Menu
 
-1. Open a file (e.g., a JavaScript, TypeScript, C#, VB, or ASPX file) in VS Code.
-2. Right-click anywhere within the editor and select **Clear Comments**.
-3. Alternatively, press `Ctrl+Shift+P` (or `Cmd+Shift+P` on macOS), type **Clear Comments**, and hit Enter.
-4. The extension will process the active document and remove comments based on the file’s language.
+1. In the Explorer view, right-click on one or more files.
+2. Select **Clear Comments** from the context menu.
+3. The extension processes the selected file(s). Changes are applied in memory—you need to save the file manually if you wish to keep the modifications.
 
-### From the Explorer
+### Using the Command Palette
 
-1. Open the Explorer view in VS Code.
-2. Right-click on a file or select multiple files and right-click.
-3. Choose **Clear Comments** from the context menu.
-4. The extension will process each selected file and remove comments accordingly.
+1. Open the file you want to process.
+2. Press `Ctrl+Shift+P` (or `Cmd+Shift+P` on macOS) to open the Command Palette.
+3. Type **Clear Comments** and select the command.
+4. The extension processes the active document and displays an information message when done.
 
-*Note:* The extension uses regex-based logic to identify and remove comments. For more advanced use cases or languages with complex comment structures, further improvements or language-specific parsers might be required.
+## Supported File Types
 
-## Supported Languages
+- **JavaScript:** `.js`
+- **TypeScript:** `.ts`
+- **TSX:** `.tsx`
+- **C#:** `.cs`
+- **VB:** `.vb`
+- **HTML:** `.html`
+- **ASPX:** `.aspx`
 
-- JavaScript
-- TypeScript
-- C#
-- VB
-- HTML / ASPX
+If the language of the file is not supported by the extension, an information message will inform you, and no changes will be made.
 
-If your file's language is not supported, the extension will notify you.
+## Logging and Debugging
 
-## Contributing
+During processing, the extension logs key events and actions to the Developer Tools console. You can view these logs by opening **Help > Toggle Developer Tools** in the Extension Development Host. This is useful for understanding how your code is being processed and for troubleshooting any issues.
 
-Contributions and feedback are welcome! If you encounter any issues or have suggestions for improvements, please feel free to open an issue or submit a pull request.
+## Contribution
+
+Contributions, bug reports, and feature requests are welcome!  
+If you have suggestions or improvements, please open an issue or submit a pull request at our [GitHub repository](https://github.com/buimanhtoan-it/clear-comments.git).
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+This extension is licensed under the ISC License.
