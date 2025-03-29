@@ -1,9 +1,19 @@
 import * as vscode from 'vscode';
 
 /**
+ * Escapes a string to be safely used in a regular expression.
+ */
+function escapeRegex(str: string): string {
+  return str.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+}
+
+/**
  * Uses a simple mapping of language IDs to comment tokens to remove entire lines
  * that are solely comments and to remove inline comment portions after code,
  * but only if the code before the inline comment token ends with ';' or '}' (or is empty).
+ *
+ * For block comments, this version uses a regular expression approach (inspired by Better Comments)
+ * to accurately identify and remove block comments.
  */
 function removeCommentsUsingConfig(doc: vscode.TextDocument): string {
   // Mapping of language IDs to their comment configuration.
@@ -58,19 +68,18 @@ function removeCommentsUsingConfig(doc: vscode.TextDocument): string {
       }
     }
 
-    // Process inline block comments (heuristic: remove one occurrence per line).
-    if (config.block && line.includes(config.block[0]) && line.includes(config.block[1])) {
-      const start = line.indexOf(config.block[0]);
-      const end = line.indexOf(config.block[1], start);
-      if (start !== -1 && end !== -1 && start < end) {
-        const before = line.substring(0, start).trimEnd();
-        const after = line.substring(end + config.block[1].length).trimStart();
-        // If the code before the block comment ends with ';' or '}' (or is empty), remove the block.
-        if (before === '' || before.endsWith(';') || before.endsWith('}')) {
-          console.log(`Removed inline block comment from line: "${line}"`);
-          line = before + (after ? ' ' + after : '');
+    // Process inline block comments using regex (for better accuracy)
+    if (config.block) {
+      const [startDelim, endDelim] = config.block;
+      const blockRegex = new RegExp(`${escapeRegex(startDelim)}[\\s\\S]*?${escapeRegex(endDelim)}`, 'gm');
+      line = line.replace(blockRegex, (match, offset) => {
+        const codeBefore = line.substring(0, offset).trimEnd();
+        if (codeBefore === '' || codeBefore.endsWith(';') || codeBefore.endsWith('}')) {
+          console.log(`Removed inline block comment from line: "${match}" in "${line}"`);
+          return ''; // Remove the block comment.
         }
-      }
+        return match; // Otherwise, leave it.
+      });
     }
 
     resultLines.push(line);
