@@ -1,0 +1,71 @@
+{
+  "name": "clear-comments",
+  "displayName": "Clear Comments",
+  "description": "Clear Comments is a Visual Studio Code extension designed to quickly remove comments from your code. Whether you're preparing your code for production, analyzing it without distractions, or simply cleaning up legacy files, Clear Comments supports a variety of languages including C#, JavaScript, TypeScript, VB, ASPX, and more.",
+  "version": "1.2.10",
+  "engines": {
+    "vscode": ">=1.96.0"
+  },
+  "author": {
+    "name": "ToanBui",
+    "email": "buimanhtoan.it@gmail.com"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:clear-comment.clearComments"
+  ],
+  "main": "./out/extension.js",
+  "publisher": "ToanBui",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/buimanhtoan-it/clear-comments.git"
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "clear-comment.clearComments",
+        "title": "Clear Comments"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "clear-comment.clearComments",
+          "group": "navigation"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "clear-comment.clearComments",
+          "group": "navigation"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "20.x",
+    "@types/vscode": "^1.96.0",
+    "@typescript-eslint/eslint-plugin": "^8.28.0",
+    "@typescript-eslint/parser": "^8.28.0",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.4.1",
+    "eslint": "^9.23.0",
+    "typescript": "^5.8.2"
+  },
+  "dependencies": {
+    "vscode-oniguruma": "^2.0.1",
+    "vscode-textmate": "^9.2.0"
+  }
+}
