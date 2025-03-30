@@ -8,10 +8,13 @@ If you try to run Clear Comments on a file whose language isn’t supported, the
 
 - **Supported Languages:**
   - **JavaScript / TypeScript / TSX:** Removes both line (`//`) and block (`/* … */`) comments.
+  - **C / C++:** Removes both line (`//`) and block (`/* … */`) comments.
   - **C#:** Removes line and block comments.
   - **VB:** Removes lines starting with the VB comment token (`'`).
   - **HTML / ASPX:** Removes block comments (`<!-- … -->`).
-  
+  - **Other Supported Languages:**
+    - CoffeeScript, F#, Go, Handlebars, Jade, Java, Less, Lua, Makefile, PHP, Rust, SCSS, ShaderLab, Shell/Bash, Swift, XML, XSL, YAML.
+
 - **Inline Comment Removal:**
   - If an inline comment marker (`//`) appears in a line, the comment part is removed only if the code preceding the marker is empty or ends with `;` or `}`.
   - The same heuristic is applied to inline block comments.
@@ -34,7 +37,7 @@ If you try to run Clear Comments on a file whose language isn’t supported, the
 2. **From the Visual Studio Code Marketplace:**
    - Search for "Clear Comments" and install the extension directly from the marketplace (if published).
 
-## Usage
+## Easy Usage
 
 ### Using the Explorer Context Menu
 
@@ -51,13 +54,29 @@ If you try to run Clear Comments on a file whose language isn’t supported, the
 
 ## Supported File Types
 
-- **JavaScript:** `.js`
-- **TypeScript:** `.ts`
-- **TSX:** `.tsx`
+- **C / C++:** `.c`, `.cpp`, `.h`
 - **C#:** `.cs`
+- **CoffeeScript:** `.coffee`
+- **F#:** `.fs`
+- **Go:** `.go`
+- **Handlebars:** `.hbs`
+- **HTML / ASPX:** `.html`, `.aspx`
+- **Jade / Pug:** `.jade`, `.pug`
+- **Java:** `.java`
+- **JavaScript:** `.js`
+- **Less:** `.less`
+- **Lua:** `.lua`
+- **Makefile:** `Makefile`
+- **PHP:** `.php`
+- **Rust:** `.rs`
+- **SCSS:** `.scss`
+- **ShaderLab:** `.shader`
+- **Shell / Bash:** `.sh`
+- **Swift:** `.swift`
+- **TypeScript / TSX:** `.ts`, `.tsx`
 - **VB:** `.vb`
-- **HTML:** `.html`
-- **ASPX:** `.aspx`
+- **XML / XSL:** `.xml`, `.xsl`
+- **YAML:** `.yml`, `.yaml`
 
 If the language of the file is not supported by the extension, an information message will inform you, and no changes will be made.
 

@@ -1,115 +1,180 @@
 import * as vscode from 'vscode';
+import * as vsctm from 'vscode-textmate';
+import * as fs from 'fs';
+import * as path from 'path';
+import { promisify } from 'util';
+import * as oniguruma from 'vscode-oniguruma';
+
+const readFileAsync = promisify(fs.readFile);
 
 /**
- * Escapes a string to be safely used in a regular expression.
+ * Map of VS Code languageId -> corresponding grammar filename.
+ * Adjust or add entries to match the languages/filenames you support.
  */
-function escapeRegex(str: string): string {
-  return str.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+const SUPPORTED_LANGUAGES: Record<string, string> = {
+  "c": "c.tmLanguage.json",
+  "cpp": "c++.tmLanguage.json",
+  "coffeescript": "coffeescript.tmLanguage.json",
+  "csharp": "csharp.tmLanguage.json",
+  "cshtml": "cshtml.tmLanguage.json",
+  "fsharp": "fsharp.tmLanguage.json",
+  "go": "go.tmLanguage.json",
+  "handlebars": "Handlebars.tmLanguage.json",
+  "html": "html.tmLanguage.json",
+  "jade": "Jade.tmLanguage.json",
+  "java": "java.tmLanguage.json",
+  "javascript": "JavaScript.tmLanguage.json",
+  "less": "less.tmLanguage.json",
+  "lua": "lua.tmLanguage.json",
+  // For Python grammar:
+  "python": "MagicPython.tmLanguage.json",
+  // For extended regex grammar:
+  "regexp": "MagicRegExp.tmLanguage.json",
+  "makefile": "Makefile.tmLanguage.json",
+  "php": "php.tmLanguage.json",
+  "rust": "rust.tmLanguage.json",
+  "scss": "scss.tmLanguage.json",
+  "shaderlab": "shaderlab.tmLanguage.json",
+  "shellscript": "Shell-Unix-Bash.tmLanguage.json",
+  "swift": "swift.tmLanguage.json",
+  "typescript": "TypeScript.tmLanguage.json",
+  "typescriptreact": "TypeScriptReact.tmLanguage.json",
+  "xml": "xml.tmLanguage.json",
+  "xsl": "xsl.tmLanguage.json",
+  "yaml": "yaml.tmLanguage.json"
+};
+
+/**
+ * Given a languageId (e.g., 'typescript'), return the path to the grammar file
+ * (e.g., /absolute/path/to/out/grammars/TypeScript.tmLanguage.json) if available.
+ * If not supported, returns null.
+ */
+function getGrammarPath(languageId: string): string | null {
+  const grammarFilename = SUPPORTED_LANGUAGES[languageId];
+  if (!grammarFilename) {
+    // The language is not in our SUPPORTED_LANGUAGES map
+    return null;
+  }
+  const grammarFile = path.join(__dirname, 'grammars', grammarFilename);
+  return fs.existsSync(grammarFile) ? grammarFile : null;
+}
+
+async function loadGrammar(languageId: string): Promise<vsctm.IGrammar | null> {
+  // 1) Find the grammar path for the given languageId
+  const grammarPath = getGrammarPath(languageId);
+  if (!grammarPath) {
+    // Show info message only once per operation if no match.
+    vscode.window.showInformationMessage(
+      `Language "${languageId}" is not supported by Clear Comments extension.`
+    );
+    return null;
+  }
+
+  try {
+    // 2) Load that grammar file
+    const content = await readFileAsync(grammarPath, 'utf8');
+    const rawGrammar = JSON.parse(content);
+
+    // 3) Read the wasm binary for oniguruma (ensure onig.wasm is copied to your out folder)
+    const wasmPath = path.join(__dirname, 'onig.wasm');
+    const wasmBin = await readFileAsync(wasmPath);
+
+    // 4) Create a promise that resolves once WASM is loaded
+    const onigLib = oniguruma.loadWASM(wasmBin.buffer as ArrayBuffer).then(() => {
+      return {
+        createOnigScanner: (patterns: string[]) => new oniguruma.OnigScanner(patterns),
+        createOnigString: (s: string) => new oniguruma.OnigString(s)
+      };
+    });
+
+    // 5) Create a TextMate registry
+    const registry = new vsctm.Registry({
+      onigLib,
+      loadGrammar: async (_scopeName: string) => null
+    });
+
+    // 6) Add the grammar to the registry
+    const grammar = await registry.addGrammar(rawGrammar);
+    return grammar;
+  } catch (err) {
+    vscode.window.showErrorMessage(`Failed to load grammar for ${languageId}: ${err}`);
+    return null;
+  }
 }
 
 /**
- * Uses a simple mapping of language IDs to comment tokens to remove entire lines
- * that are solely comments and to remove inline comment portions after code,
- * but only if the code before the inline comment token ends with ';' or '}' (or is empty).
- *
- * For block comments, this version uses a regular expression approach (inspired by Better Comments)
- * to accurately identify and remove block comments.
+ * Use a TextMate grammar to remove comments from the given document.
+ * If we don't have a grammar for doc.languageId, returns the text unchanged.
  */
-function removeCommentsUsingConfig(doc: vscode.TextDocument): string {
-  // Mapping of language IDs to their comment configuration.
-  const commentConfig: Record<string, { line?: string; block?: [string, string] }> = {
-    javascript: { line: '//', block: ['/*', '*/'] },
-    typescript: { line: '//', block: ['/*', '*/'] },
-    "typescriptreact": { line: '//', block: ['/*', '*/'] }, // Support for TSX files.
-    csharp: { line: '//', block: ['/*', '*/'] },
-    vb: { line: "'" },
-    html: { block: ['<!--', '-->'] },
-    aspx: { block: ['<!--', '-->'] }
-  };
-
-  const config = commentConfig[doc.languageId];
-  if (!config) {
-    const message = `Clear Comments: Language "${doc.languageId}" is not supported.`;
-    vscode.window.showInformationMessage(message);
-    console.log(message);
+async function removeCommentsUsingTextMate(doc: vscode.TextDocument): Promise<string> {
+  const grammar = await loadGrammar(doc.languageId);
+  // If we didn't find a matching grammar, skip removing comments
+  if (!grammar) {
     return doc.getText();
   }
 
   const lines = doc.getText().split(/\r?\n/);
-  let resultLines: string[] = [];
+  const processedLines: string[] = [];
 
-  for (let line of lines) {
-    const trimmed = line.trim();
-    let isEntirelyComment = false;
+  // Store the rule stack as 'any' because newer vscode-textmate no longer exports StackElement
+  let ruleStack: any = null;
 
-    // Check if the entire line is a line comment.
-    if (config.line && trimmed.startsWith(config.line)) {
-      isEntirelyComment = true;
-    }
-    // Check if the entire line is a block comment.
-    if (config.block && trimmed.startsWith(config.block[0]) && trimmed.endsWith(config.block[1])) {
-      isEntirelyComment = true;
-    }
+  for (const line of lines) {
+    const originallyEmpty = (line.trim().length === 0);
 
-    if (isEntirelyComment) {
-      console.log(`Removed comment-only line: "${line}"`);
-      continue; // Skip this line.
-    }
+    // Tokenize this line, preserving multi-line comment context
+    const lineResult = grammar.tokenizeLine(line, ruleStack);
+    const tokens = lineResult.tokens;
+    ruleStack = lineResult.ruleStack; // carry forward for multi-line/block comments
 
-    // Process inline line comments.
-    if (config.line && line.includes(config.line)) {
-      const index = line.indexOf(config.line);
-      const codePart = line.substring(0, index).trimEnd();
-      // Only remove the inline comment if the code part is empty (no code)
-      // or if it ends with ';' or '}'.
-      if (codePart === '' || codePart.endsWith(';') || codePart.endsWith('}')) {
-        console.log(`Removed inline comment from line: "${line}"`);
-        line = codePart;
+    // Identify the non-comment segments in this line
+    const nonCommentRanges: { startIndex: number; endIndex: number }[] = [];
+    let lastIndex = 0;
+
+    for (const token of tokens) {
+      if (token.scopes.some(scope => scope.includes('comment'))) {
+        // If there's a gap between lastIndex and the start of the comment, record it
+        if (token.startIndex > lastIndex) {
+          nonCommentRanges.push({ startIndex: lastIndex, endIndex: token.startIndex });
+        }
+        lastIndex = token.endIndex;
       }
     }
-
-    // Process inline block comments using regex (for better accuracy)
-    if (config.block) {
-      const [startDelim, endDelim] = config.block;
-      const blockRegex = new RegExp(`${escapeRegex(startDelim)}[\\s\\S]*?${escapeRegex(endDelim)}`, 'gm');
-      line = line.replace(blockRegex, (match, offset) => {
-        const codeBefore = line.substring(0, offset).trimEnd();
-        if (codeBefore === '' || codeBefore.endsWith(';') || codeBefore.endsWith('}')) {
-          console.log(`Removed inline block comment from line: "${match}" in "${line}"`);
-          return ''; // Remove the block comment.
-        }
-        return match; // Otherwise, leave it.
-      });
+    // Add any trailing text after the last comment
+    if (lastIndex < line.length) {
+      nonCommentRanges.push({ startIndex: lastIndex, endIndex: line.length });
     }
 
-    resultLines.push(line);
+    // Reconstruct the line from non-comment segments
+    const processedLine = nonCommentRanges
+      .map(range => line.substring(range.startIndex, range.endIndex))
+      .join('');
+
+    // Keep lines that still have code OR were originally empty (i.e., no removed comments)
+    if (processedLine.trim().length > 0 || originallyEmpty) {
+      processedLines.push(processedLine);
+    }
   }
-  
-  return resultLines.join('\n');
+
+  return processedLines.join('\n');
 }
 
 export function activate(context: vscode.ExtensionContext) {
-  console.log('Clear Comments extension is activating...');
+  console.log('Clear Comments extension is activating with multi-language TextMate-based removal...');
 
-  let disposable = vscode.commands.registerCommand('clear-comment.clearComments', async (uri: vscode.Uri | vscode.Uri[] | undefined) => {
-    console.log('Clear Comments command triggered.');
+  const disposable = vscode.commands.registerCommand('clear-comment.clearComments', async (uri: vscode.Uri | vscode.Uri[] | undefined) => {
     if (uri) {
-      // Process one or multiple selected files from Explorer.
-      console.log('Processing file(s) from Explorer.');
       const uris: vscode.Uri[] = Array.isArray(uri) ? uri : [uri];
       for (const fileUri of uris) {
-        console.log(`Processing file: ${fileUri.fsPath}`);
         await processFile(fileUri);
       }
       vscode.window.showInformationMessage('Comments cleared for selected file(s).');
     } else {
-      // Process the active text editor document.
       const editor = vscode.window.activeTextEditor;
       if (!editor) {
         vscode.window.showInformationMessage('No active editor found.');
         return;
       }
-      console.log(`Processing active document: ${editor.document.fileName}`);
       await processDocument(editor.document, editor);
       vscode.window.showInformationMessage('Comments cleared in the active document.');
     }
@@ -118,31 +183,39 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(disposable);
 }
 
+/**
+ * Process a specific file on disk by removing comments and replacing the file contents.
+ */
 async function processFile(fileUri: vscode.Uri): Promise<void> {
   try {
     const doc = await vscode.workspace.openTextDocument(fileUri);
-    console.log(`Document language: ${doc.languageId}`);
-    const newText = removeCommentsUsingConfig(doc);
+    const newText = await removeCommentsUsingTextMate(doc);
+
     const edit = new vscode.WorkspaceEdit();
-    const fullRange = new vscode.Range(doc.positionAt(0), doc.positionAt(doc.getText().length));
+    const fullRange = new vscode.Range(
+      doc.positionAt(0),
+      doc.positionAt(doc.getText().length)
+    );
+
     edit.replace(fileUri, fullRange, newText);
     await vscode.workspace.applyEdit(edit);
-    // Do not automatically save the file.
-    console.log(`File processed (not auto-saved): ${fileUri.fsPath}`);
   } catch (error) {
     vscode.window.showErrorMessage(`Failed to process ${fileUri.fsPath}: ${error}`);
-    console.error(`Error processing file ${fileUri.fsPath}:`, error);
   }
 }
 
+/**
+ * Process the currently opened document in the editor.
+ */
 async function processDocument(doc: vscode.TextDocument, editor: vscode.TextEditor): Promise<void> {
-  console.log(`Document language: ${doc.languageId}`);
-  const newText = removeCommentsUsingConfig(doc);
-  const fullRange = new vscode.Range(doc.positionAt(0), doc.positionAt(doc.getText().length));
+  const newText = await removeCommentsUsingTextMate(doc);
+  const fullRange = new vscode.Range(
+    doc.positionAt(0),
+    doc.positionAt(doc.getText().length)
+  );
   await editor.edit(editBuilder => {
     editBuilder.replace(fullRange, newText);
   });
-  console.log(`Active document processed (not auto-saved): ${doc.fileName}`);
 }
 
 export function deactivate() {
