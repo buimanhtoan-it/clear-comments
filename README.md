@@ -1,6 +1,10 @@
 # Clear Comments
 
-Clear Comments is a Visual Studio Code extension designed to help you quickly remove comments from your code. It works by processing the currently open document—or one or more files selected in the Explorer—using a simple mapping of language IDs to comment tokens. The extension removes entire lines that are solely comments and, when appropriate, removes inline comment portions (only if the code before the comment marker is empty or ends with a semicolon (`;`) or a closing brace (`}`)).
+Clear Comments is a Visual Studio Code extension designed to help you quickly remove comments from your code.
+
+![Clear Comments in action](example/clear-comment-in-action.gif)
+
+It works by processing the currently open document—or one or more files selected in the Explorer—using a simple mapping of language IDs to comment tokens. The extension removes entire lines that are solely comments and, when appropriate, removes inline comment portions (only if the code before the comment marker is empty or ends with a semicolon (`;`) or a closing brace (`}`)).
 
 If you try to run Clear Comments on a file whose language isn’t supported, the extension will inform you via an information message.
 
