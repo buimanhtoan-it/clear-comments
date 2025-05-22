@@ -1,56 +1,39 @@
 {
   "name": "clear-comments",
   "displayName": "Clear Comments",
-  "description": "Clear Comments is a Visual Studio Code extension designed to quickly remove comments from your code. Whether you're preparing your code for production, analyzing it without distractions, or simply cleaning up legacy files, Clear Comments supports a variety of languages including C#, JavaScript, TypeScript, VB, ASPX, and more.",
-  "version": "1.3.4",
-  "engines": {
-    "vscode": ">=1.96.0"
-  },
-  "author": {
-    "name": "ToanBui",
-    "email": "buimanhtoan.it@gmail.com"
-  },
+  "description": "Clear Comments quickly removes comments from your code — perfect for cleaning up boilerplate or AI/ChatGPT-generated comments.",
+  "version": "1.3.5",
+  "engines": { "vscode": ">=1.96.0" },
+  "author": { "name": "ToanBui", "email": "buimanhtoan.it@gmail.com" },
+  "repository": { "type": "git", "url": "https://github.com/buimanhtoan-it/clear-comments.git" },
+  "license": "ISC",
   "categories": [
-    "Other"
+    "Formatters",
+    "Snippets",
+    "Linters",
+    "Tools"
   ],
-  "activationEvents": [
-    "onCommand:clear-comment.clearComments"
+  "keywords": [
+    "comments",
+    "cleanup",
+    "AI",
+    "ChatGPT",
+    "code",
+    "vscode",
+    "developer-tools",
+    "productivity"
   ],
+  "activationEvents": [ "onCommand:clear-comment.clearComments" ],
   "main": "./out/extension.js",
   "publisher": "ToanBui",
-  "license": "ISC",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/buimanhtoan-it/clear-comments.git"
-  },
+  "files": [ "out", "src", "grammars", "onig.wasm" ],
   "contributes": {
-    "commands": [
-      {
-        "command": "clear-comment.clearComments",
-        "title": "Clear Comments"
-      }
-    ],
+    "commands": [{ "command": "clear-comment.clearComments", "title": "Clear Comments" }],
     "menus": {
-      "editor/context": [
-        {
-          "command": "clear-comment.clearComments",
-          "group": "navigation"
-        }
-      ],
-      "explorer/context": [
-        {
-          "command": "clear-comment.clearComments",
-          "group": "navigation"
-        }
-      ]
+      "editor/context": [{ "command": "clear-comment.clearComments", "group": "navigation" }],
+      "explorer/context": [{ "command": "clear-comment.clearComments", "group": "navigation" }]
     }
   },
-  "files": [
-    "out",
-    "src",
-    "grammars",
-    "onig.wasm"
-  ],
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
